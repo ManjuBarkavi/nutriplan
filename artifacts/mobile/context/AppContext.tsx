@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -16,8 +17,19 @@ import {
   generateGroceryList,
   generateWeeklyMeals,
 } from "@/constants/nutrients";
+import {
+  SYNC_AVAILABLE,
+  generateSyncCode,
+  isValidSyncCode,
+  pullState,
+  pushState,
+} from "@/lib/sync";
 
 const STORAGE_KEY = "@nutriplan_app_state";
+const SYNC_CODE_KEY = "@nutriplan_sync_code";
+const LAST_SYNC_KEY = "@nutriplan_last_sync";
+
+export type SyncStatus = "idle" | "syncing" | "error";
 
 type CustomMealInput = {
   name: string;
@@ -46,6 +58,12 @@ interface AppContextValue {
   getNutrientProgress: (nutrientId: string) => number;
   resetPlan: () => void;
   addCustomMeal: (input: CustomMealInput) => void;
+  syncAvailable: boolean;
+  syncCode: string | null;
+  syncStatus: SyncStatus;
+  enableSync: () => Promise<void>;
+  joinSync: (code: string) => Promise<"ok" | "invalid" | "not-found" | "error">;
+  disableSync: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -70,14 +88,125 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [syncCode, setSyncCode] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [reconciled, setReconciled] = useState(false);
+  const skipNextPush = useRef(false);
+
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((stored) => {
+    Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY),
+      SYNC_AVAILABLE ? AsyncStorage.getItem(SYNC_CODE_KEY) : null,
+    ])
+      .then(([stored, code]) => {
         if (stored) {
           setState(JSON.parse(stored));
         }
+        if (code) setSyncCode(code);
       })
       .finally(() => setIsLoading(false));
+  }, []);
+
+  // On startup, adopt the server copy if another device changed it since this device last synced.
+  useEffect(() => {
+    if (isLoading || !syncCode) {
+      setReconciled(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSyncStatus("syncing");
+      try {
+        const [remote, lastSync] = await Promise.all([
+          pullState(syncCode),
+          AsyncStorage.getItem(LAST_SYNC_KEY),
+        ]);
+        if (cancelled) return;
+        skipNextPush.current = true;
+        if (remote && remote.updatedAt !== lastSync) {
+          setState({ ...defaultState, ...remote.state });
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remote.state));
+          await AsyncStorage.setItem(LAST_SYNC_KEY, remote.updatedAt);
+        }
+        setSyncStatus("idle");
+      } catch {
+        if (!cancelled) setSyncStatus("error");
+      }
+      if (!cancelled) setReconciled(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, syncCode]);
+
+  // Push local changes shortly after they stop (last write wins on the server).
+  useEffect(() => {
+    if (!syncCode || !reconciled) return;
+    if (skipNextPush.current) {
+      skipNextPush.current = false;
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSyncStatus("syncing");
+      try {
+        const updatedAt = await pushState(syncCode, state);
+        await AsyncStorage.setItem(LAST_SYNC_KEY, updatedAt);
+        setSyncStatus("idle");
+      } catch {
+        setSyncStatus("error");
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [state, syncCode, reconciled]);
+
+  const enableSync = useCallback(async () => {
+    const code = generateSyncCode();
+    setSyncStatus("syncing");
+    try {
+      const updatedAt = await pushState(code, state);
+      await AsyncStorage.multiSet([
+        [SYNC_CODE_KEY, code],
+        [LAST_SYNC_KEY, updatedAt],
+      ]);
+      skipNextPush.current = true;
+      setSyncCode(code);
+      setSyncStatus("idle");
+    } catch {
+      setSyncStatus("error");
+    }
+  }, [state]);
+
+  const joinSync = useCallback(async (raw: string) => {
+    const code = raw.trim().toLowerCase();
+    if (!isValidSyncCode(code)) return "invalid" as const;
+    setSyncStatus("syncing");
+    try {
+      const remote = await pullState(code);
+      if (!remote) {
+        setSyncStatus("idle");
+        return "not-found" as const;
+      }
+      const next = { ...defaultState, ...remote.state };
+      await AsyncStorage.multiSet([
+        [STORAGE_KEY, JSON.stringify(next)],
+        [SYNC_CODE_KEY, code],
+        [LAST_SYNC_KEY, remote.updatedAt],
+      ]);
+      skipNextPush.current = true;
+      setState(next);
+      setSyncCode(code);
+      setSyncStatus("idle");
+      return "ok" as const;
+    } catch {
+      setSyncStatus("error");
+      return "error" as const;
+    }
+  }, []);
+
+  const disableSync = useCallback(() => {
+    AsyncStorage.multiRemove([SYNC_CODE_KEY, LAST_SYNC_KEY]);
+    setSyncCode(null);
+    setSyncStatus("idle");
   }, []);
 
   const persist = useCallback((newState: AppState) => {
@@ -248,6 +377,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getNutrientProgress,
       resetPlan,
       addCustomMeal,
+      syncAvailable: SYNC_AVAILABLE,
+      syncCode,
+      syncStatus,
+      enableSync,
+      joinSync,
+      disableSync,
     }),
     [
       state,
@@ -265,6 +400,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getNutrientProgress,
       resetPlan,
       addCustomMeal,
+      syncCode,
+      syncStatus,
+      enableSync,
+      joinSync,
+      disableSync,
     ]
   );
 

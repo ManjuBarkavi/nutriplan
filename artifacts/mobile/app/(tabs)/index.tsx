@@ -224,7 +224,7 @@ const mealStyles = StyleSheet.create({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const colors = Colors.light;
-  const { state, isLoading, getMealsByDay, getNutrientProgress, toggleMealConsumed, getTodayEntry } =
+  const { state, isLoading, getMealsByDay, getNutrientProgress, toggleMealConsumed, getTodayEntry, syncAvailable } =
     useApp();
 
   const today = new Date().toLocaleString("en-US", { weekday: "long" });
@@ -277,6 +277,16 @@ export default function HomeScreen() {
               : "evening"}
           </Text>
         </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        {syncAvailable && (
+          <Pressable
+            onPress={() => router.push("/sync")}
+            accessibilityLabel="Sync across devices"
+            style={({ pressed }) => [styles.profileBtn, { opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Feather name="cloud" size={22} color={colors.tint} />
+          </Pressable>
+        )}
         <Pressable
           onPress={() => router.push("/onboarding")}
           style={({ pressed }) => [
@@ -291,6 +301,7 @@ export default function HomeScreen() {
             <Feather name="settings" size={9} color="#fff" />
           </View>
         </Pressable>
+        </View>
       </View>
 
       {/* Today's Summary Card */}

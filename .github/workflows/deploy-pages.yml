@@ -27,6 +27,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm --filter @workspace/mobile run build:web
+        env:
+          # Set the API_URL repository variable to enable device sync in the published app.
+          EXPO_PUBLIC_API_URL: ${{ vars.API_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: artifacts/mobile/dist-web

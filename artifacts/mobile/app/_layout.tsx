@@ -27,6 +27,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="meal-detail" options={{ headerShown: false }} />
       <Stack.Screen name="add-meal" options={{ headerShown: false }} />
+      <Stack.Screen name="sync" options={{ headerShown: false }} />
 
     </Stack>
   );
