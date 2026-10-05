@@ -38,7 +38,7 @@ function GroceryItem({
   item,
   onToggle,
 }: {
-  item: { id: string; name: string; amount: string; checked: boolean };
+  item: { id: string; name: string; amount?: string; checked: boolean };
   onToggle: () => void;
 }) {
   const colors = Colors.light;

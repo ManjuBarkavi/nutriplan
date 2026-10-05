@@ -21,7 +21,9 @@
       "package": "com.knowyourmeal.app"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "output": "single"
     },
     "plugins": [
       [
@@ -35,7 +37,8 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": true,
+      "baseUrl": "/nutriplan"
     }
   }
 }

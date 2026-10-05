@@ -5,18 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ErrorResponse,
+  HealthStatus,
+  SyncState,
+  SyncStateInput,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +107,177 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get synced app state
+ */
+export const getGetSyncStateUrl = (syncId: string) => {
+  return `/api/sync/${syncId}`;
+};
+
+export const getSyncState = async (
+  syncId: string,
+  options?: RequestInit,
+): Promise<SyncState> => {
+  return customFetch<SyncState>(getGetSyncStateUrl(syncId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSyncStateQueryKey = (syncId: string) => {
+  return [`/api/sync/${syncId}`] as const;
+};
+
+export const getGetSyncStateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSyncState>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  syncId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSyncState>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSyncStateQueryKey(syncId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSyncState>>> = ({
+    signal,
+  }) => getSyncState(syncId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!syncId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSyncState>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSyncStateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSyncState>>
+>;
+export type GetSyncStateQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get synced app state
+ */
+
+export function useGetSyncState<
+  TData = Awaited<ReturnType<typeof getSyncState>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  syncId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSyncState>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSyncStateQueryOptions(syncId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Replace synced app state (last write wins)
+ */
+export const getPutSyncStateUrl = (syncId: string) => {
+  return `/api/sync/${syncId}`;
+};
+
+export const putSyncState = async (
+  syncId: string,
+  syncStateInput: SyncStateInput,
+  options?: RequestInit,
+): Promise<SyncState> => {
+  return customFetch<SyncState>(getPutSyncStateUrl(syncId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(syncStateInput),
+  });
+};
+
+export const getPutSyncStateMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putSyncState>>,
+    TError,
+    { syncId: string; data: BodyType<SyncStateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putSyncState>>,
+  TError,
+  { syncId: string; data: BodyType<SyncStateInput> },
+  TContext
+> => {
+  const mutationKey = ["putSyncState"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putSyncState>>,
+    { syncId: string; data: BodyType<SyncStateInput> }
+  > = (props) => {
+    const { syncId, data } = props ?? {};
+
+    return putSyncState(syncId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutSyncStateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putSyncState>>
+>;
+export type PutSyncStateMutationBody = BodyType<SyncStateInput>;
+export type PutSyncStateMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Replace synced app state (last write wins)
+ */
+export const usePutSyncState = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putSyncState>>,
+    TError,
+    { syncId: string; data: BodyType<SyncStateInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof putSyncState>>,
+  TError,
+  { syncId: string; data: BodyType<SyncStateInput> },
+  TContext
+> => {
+  return useMutation(getPutSyncStateMutationOptions(options));
+};

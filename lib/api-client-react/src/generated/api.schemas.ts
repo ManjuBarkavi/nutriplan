@@ -5,6 +5,23 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface ErrorResponse {
+  error: string;
+}
+
+export type SyncStateInputState = { [key: string]: unknown };
+
+export interface SyncStateInput {
+  state: SyncStateInputState;
+}
+
+export type SyncStateState = { [key: string]: unknown };
+
+export interface SyncState {
+  state: SyncStateState;
+  updatedAt: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

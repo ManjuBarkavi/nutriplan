@@ -25,6 +25,7 @@ export default {
     text: palette.charcoal,
     textSecondary: palette.slate,
     textMuted: palette.muted,
+    muted: palette.muted,
     background: palette.cream,
     backgroundSecondary: palette.creamDark,
     backgroundCard: palette.white,

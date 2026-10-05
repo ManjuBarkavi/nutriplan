@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: sync
+    description: Cross-device sync of app state
 paths:
   /healthz:
     get:
@@ -24,8 +26,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /sync/{syncId}:
+    parameters:
+      - name: syncId
+        in: path
+        required: true
+        description: Random client-generated sync code. Treat it as a secret; anyone holding it can read and overwrite the state.
+        schema:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{16,64}$"
+    get:
+      operationId: getSyncState
+      tags: [sync]
+      summary: Get synced app state
+      responses:
+        "200":
+          description: The stored state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncState"
+        "404":
+          description: Nothing stored for this sync code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: putSyncState
+      tags: [sync]
+      summary: Replace synced app state (last write wins)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncStateInput"
+      responses:
+        "200":
+          description: The stored state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncState"
+        "400":
+          description: Invalid sync code or body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    SyncStateInput:
+      type: object
+      properties:
+        state:
+          type: object
+          additionalProperties: true
+      required:
+        - state
+    SyncState:
+      type: object
+      properties:
+        state:
+          type: object
+          additionalProperties: true
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - state
+        - updatedAt
     HealthStatus:
       type: object
       properties:

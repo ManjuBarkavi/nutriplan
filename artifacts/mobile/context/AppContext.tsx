@@ -220,7 +220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mealIds: [id],
       }));
       const existingGrocery = state.groceryItems.filter(
-        (g) => g.category !== "Custom" || !g.mealIds.includes(id)
+        (g) => g.category !== "Custom" || !g.mealIds?.includes(id)
       );
       persist({
         ...state,

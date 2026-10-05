@@ -18,7 +18,7 @@ function NativeTabLayout() {
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="plan">
-        <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
+        <Icon sf={{ default: "calendar", selected: "calendar.circle.fill" }} />
         <Label>Plan</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="grocery">

@@ -14,3 +14,49 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Get synced app state
+ */
+export const getSyncStatePathSyncIdRegExp = new RegExp(
+  "^[A-Za-z0-9_-]{16,64}$",
+);
+
+export const GetSyncStateParams = zod.object({
+  syncId: zod.coerce
+    .string()
+    .regex(getSyncStatePathSyncIdRegExp)
+    .describe(
+      "Random client-generated sync code. Treat it as a secret; anyone holding it can read and overwrite the state.",
+    ),
+});
+
+export const GetSyncStateResponse = zod.object({
+  state: zod.record(zod.string(), zod.unknown()),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Replace synced app state (last write wins)
+ */
+export const putSyncStatePathSyncIdRegExp = new RegExp(
+  "^[A-Za-z0-9_-]{16,64}$",
+);
+
+export const PutSyncStateParams = zod.object({
+  syncId: zod.coerce
+    .string()
+    .regex(putSyncStatePathSyncIdRegExp)
+    .describe(
+      "Random client-generated sync code. Treat it as a secret; anyone holding it can read and overwrite the state.",
+    ),
+});
+
+export const PutSyncStateBody = zod.object({
+  state: zod.record(zod.string(), zod.unknown()),
+});
+
+export const PutSyncStateResponse = zod.object({
+  state: zod.record(zod.string(), zod.unknown()),
+  updatedAt: zod.date(),
+});
