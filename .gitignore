@@ -19,6 +19,7 @@ node_modules
 *.launch
 .settings/
 *.sublime-workspace
+.serena
 
 # IDE - VSCode
 .vscode/*
